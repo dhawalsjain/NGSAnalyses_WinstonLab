@@ -86,32 +86,14 @@ gene.coverage.plot.ChIPSeq.df <- function(path="A:/work/WinstonLab/Natalia_Reim/
 }
 
 alterGFF= function(gff=gff){
-  ## this function adds columns to a getGFF() dataframe fro plotting by ggplot2
-  ## this function requires specific named columns so is very customisable
-  
-  ## R does not like variables or column names that begin with numbers e.g. 5_utr_start
-  
-  #colnames(gff)[4:7]=c('utr5_start', 'utr5_end', 'utr3_start', 'utr3_end')
-  
-  ## categorise which rows are exons and which utrs and add a column
   type=rep('exon', dim(gff)[1])
-  #type[which(!is.na(gff$utr5_start))]='utr5'
-  #type[which(!is.na(gff$utr3_start))]='utr3'
   gff=data.frame(gff,type=type)
   
   
-  ## to plot a line the length of each gene I need to add this data to each row
-  ## so I need to find the max and min exons for each transcript
-  ## the merge them back into each row of the original data
   ag.min=aggregate(gff, list(gff$tracking_id), function(x)min(as.numeric(x),na.rm=T))
   ag.max=aggregate(gff, list(gff$tracking_id), function(x)max(as.numeric(x),na.rm=T))
   ag=data.frame(tracking_id= ag.min$Group.1, start=ag.min$gene_start, end=ag.max$gene_end, strand=ag.max$strand)
   ag= ag[order(ag$start),]
-  
-  ## We are adding a y offset for each transcript element 
-  ## So we have to see whether they are overlapping i.e. if so it needs a new row	##
-  ## If it is on the pos or neg strand											##
-  ## good luck to anyone who wants to try unlooping this							##
   
   yneg=0; ypos=0; mem=vector(); y=vector()
   for(i in 1:length(ag$start))
@@ -138,17 +120,9 @@ alterGFF= function(gff=gff){
   }
   
   ag=data.frame(ag,y=y)
-  
-  ## here we are merging the start end and the y offset for each transcript back into the original data
-  ## so it is associated with every feature-row
   gff=merge(ag,gff) 
-  
-  ## to plot the line we also need to show arrow direction which requires an option first or last
   ardir=ifelse(gff$strand==1,'last','first')
   gff=data.frame(gff,ardir=ardir)
-  
-  ## OK there is an annoying glitch- that if you use strand for facet_grid then -1 will be on top
-  ## the easiest workround is to create a dummy char variable that is alphabetically the right way!!!!!
   
   strandChar=gff$strand
   strandChar[strandChar==1]<-'forward'
