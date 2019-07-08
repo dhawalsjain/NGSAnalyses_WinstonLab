@@ -71,7 +71,7 @@ mymetagenefun <- function(l,genes,max.gene.len=4000, bw=10,Margin=500,facet=NULL
   
   max.gene.len = round(max.gene.len/bw)
   Margin = round(Margin/bw)
-  mcol= max.gene.len+2*Margin-1 ## scaled metagene, adjust last bin of the gene when bw is >1
+  mcol= max.gene.len+2*Margin 
   
   depl1 <- matrix(NA,ncol=mcol,nrow = nrow(genes))
   depl2 <- matrix(NA,ncol=mcol,nrow = nrow(genes))
@@ -79,7 +79,7 @@ mymetagenefun <- function(l,genes,max.gene.len=4000, bw=10,Margin=500,facet=NULL
   nondepl2 <- matrix(NA,ncol=mcol,nrow = nrow(genes))
   ncol=(dim(l[[1]])[2])
   
-  if(F){
+  if(T){
     for(i in 1:nrow(genes)){
       j = ceiling(genes[i,]$width/bw)
       v <- l[[1]][i,(Margin+1):(Margin+j)]
@@ -102,33 +102,8 @@ mymetagenefun <- function(l,genes,max.gene.len=4000, bw=10,Margin=500,facet=NULL
       nondepl2[i,] <- v
     }
   }
-  if(T){ ## scaled metagene, adjust last bin of the gene when bw is >1 
-    for(i in 1:nrow(genes)){
-      j = ceiling(genes[i,]$width/bw)-1
-      v <- l[[1]][i,(Margin+1):(Margin+j)]
-      v <- vector.resizing(v,max.gene.len)
-      v <- c(l[[1]][i,1:Margin],v,l[[1]][i,(ncol-Margin+1):(ncol-1)])
-      #plot(1:length(v),v)
-      depl1[i,] <- v
-      v <- l[[2]][i,(Margin+1):(Margin+j)]
-      v <- vector.resizing(v,max.gene.len)
-      v <- c(l[[2]][i,1:Margin],v,l[[2]][i,(ncol-Margin+1):(ncol-1)])
-      depl2[i,] <- v
-      
-      v <- l[[3]][i,(Margin+1):(Margin+j)]
-      v <- vector.resizing(v,max.gene.len)
-      v <- c(l[[3]][i,1:Margin],v,l[[3]][i,(ncol-Margin+1):(ncol-1)])
-      nondepl1[i,] <- v
-      v <- l[[4]][i,(Margin+1):(Margin+j)]
-      v <- vector.resizing(v,max.gene.len)
-      v <- c(l[[4]][i,1:Margin],v,l[[4]][i,(ncol-Margin+1):(ncol-1)])
-      nondepl2[i,] <- v
-    }
-  }
-  
+ 
   rownames(depl1) <- rownames(depl2) <- rownames(nondepl1) <- rownames(nondepl2) <-  rownames(l[[1]])
-  #plot(1:499,apply(depl1,2,sum))
-  
   depl1 <- round((depl1+depl2)/2,2)  ## average signal after spikein normalization
   nondepl1 <- round((nondepl1+nondepl2)/2,2)  ## average signal after spikein normalizationnnnnn
   
