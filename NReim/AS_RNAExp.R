@@ -9,6 +9,190 @@ cols = c("non-depleted"="#4477AA", "Spn1-depleted"="#BB5566",
 spiked.chr <- c("chrXVII","chrXVIII","chrXIX")
 chr.flt <- c("chrI","chrII","chrIII","chrIV","chrIX","chrV","chrVI","chrVII","chrVIII","chrX","chrXI","chrXII","chrXIII","chrXIV","chrXV","chrXVI")
 
+## generate counts
+#### Sense: HTSeq
+#### Antisense: Custom script
+if(T){
+   setwd("A:/work/WinstonLab/Natalia_Reim/October2016/HTseq")
+  files <- c("count_SPN1_DMSO_1.txt", 
+             "count_SPN1_DMSO_2.txt",
+             "count_SPN1_IAA_1.txt", "count_SPN1_IAA_2.txt", 
+             "count_TIR4_DMSO_1.txt", 
+             "count_TIR4_DMSO_2.txt", "count_TIR4_IAA_1.txt", 
+             "count_TIR4_IAA_2.txt",  
+             "count_WT_DMSO_1.txt", "count_WT_DMSO_2.txt", 
+             "count_WT_IAA_1.txt", "count_WT_IAA_2.txt")
+  htseq <- c()
+  for (f in files) {
+    d <- read.delim(f,header=F)
+    d <- cbind(d, file=paste(f))
+    htseq <- rbind(htseq,d)
+    rm(d)
+  }
+  htseq$file <- sub(".txt","",htseq$file)
+  htseq$file <- sub("count_","",htseq$file)
+  names(htseq) <- c("tracking_id","counts","sample")
+  htseq <- reshape2::dcast(htseq,tracking_id~sample,value.var = "counts")
+  htseq <- htseq[-c(1:5),]
+  write.table(htseq,file="Counttable.txt",quote = F,sep = "\t",row.names = F)
+  
+  files <- c("count_SPN1_DMSO_1.neg.txt", 
+             "count_SPN1_DMSO_2.neg.txt",
+             "count_SPN1_IAA_1.neg.txt", "count_SPN1_IAA_2.neg.txt", 
+             "count_TIR4_DMSO_1.neg.txt", 
+             "count_TIR4_DMSO_2.neg.txt", "count_TIR4_IAA_1.neg.txt", 
+             "count_TIR4_IAA_2.neg.txt",  
+             "count_WT_DMSO_1.neg.txt", "count_WT_DMSO_2.neg.txt", 
+             "count_WT_IAA_1.neg.txt", "count_WT_IAA_2.neg.txt")
+  htseq <- c()
+  for (f in files) {
+    d <- read.delim(f,header=F)
+    d <- cbind(d, file=paste(f))
+    htseq <- rbind(htseq,d)
+    rm(d)
+  }
+  htseq$file <- sub(".txt","",htseq$file)
+  htseq$file <- sub("count_","",htseq$file)
+  names(htseq) <- c("tracking_id","counts","sample")
+  htseq <- reshape2::dcast(htseq,tracking_id~sample,value.var = "counts")
+  htseq <- htseq[-c(1:5),]
+  write.table(htseq,file="ASCounttable.txt",quote = F,sep = "\t",row.names = F)
+  
+  
+  
+  load("A:/work/yeast_Annotations/ScSp_SGD.RevisedGenesFull.RData")
+  htseq <- read.delim("A:/work/WinstonLab/Natalia_Reim/October2016/HTseq/Counttable.txt",header=T)
+  htseq <- merge(htseq,unique(genes[,c("chr","tracking_id")]),by="tracking_id",all.x=T)
+  rownames(htseq) <- htseq$tracking_id
+  htseq$tracking_id <- NULL
+  s <- htseq 
+  names(s)[1:12] <- c("SPN1-AID_DMSO-1", "SPN1-AID_DMSO-2", "SPN1-AID_IAA-1", "SPN1-AID_IAA-2", "noAID_DMSO-1", 
+                      "noAID_DMSO-2", "noAID_IAA-1", "noAID_IAA-2", "WT_DMSO-1", "WT_DMSO-2", 
+                      "WT_IAA-1", "WT_IAA-2")
+  htseq <- read.delim("A:/work/WinstonLab/Natalia_Reim/October2016/HTseq/ASCounttable.txt",header=T)
+  htseq <- merge(htseq,unique(genes[,c("chr","tracking_id")]),by="tracking_id",all.x=T)
+  rownames(htseq) <- htseq$tracking_id
+  htseq$tracking_id <- NULL
+  as <- htseq 
+  names(as)[1:12] <- c("SPN1-AID_DMSO-1", "SPN1-AID_DMSO-2", "SPN1-AID_IAA-1", "SPN1-AID_IAA-2", "noAID_DMSO-1", 
+                       "noAID_DMSO-2", "noAID_IAA-1", "noAID_IAA-2", "WT_DMSO-1", "WT_DMSO-2", 
+                       "WT_IAA-1", "WT_IAA-2")
+  
+  
+  check_spikeinValidity_sense <- function(s,return.norm=T){
+    df1 <- s
+    df1 <- df1[complete.cases(df1),]
+    spiked.chr <- c("chrXVII","chrXVIII","chrXIX","chrMsp","chrM","Sp_chrAB325691")
+    df1 <- df1[,c(13,1:12)]
+    df2 <-df1
+    df2[,2:13] <- apply(df2[,2:13],2,function(x){round(x*1000000/sum(x),2)})
+    df1.c <- subset(df1, df1$chr%in%spiked.chr)
+    df2.c <- subset(df2, df2$chr%in%spiked.chr)
+    df1.e <- subset(df1, !df1$chr%in%spiked.chr)
+    df2.e <- subset(df2, !df2$chr%in%spiked.chr)
+    rm(df1,df2)
+    
+    # Normalization factor estimate from spikein using DESeq2
+    library(DESeq2)
+    df1.c <-as.matrix( round (df1.c[,2:13] ))
+    type <- colnames(df1.c)
+    condition <- sub("_[012]","",type)
+    colData <- data.frame(condition,type)
+    row.names(colData) <- colData$type
+    dds <- DESeqDataSetFromMatrix(countData = df1.c,colData = colData,design = ~ condition)
+    dds <- DESeq(dds)
+    dd <- sizeFactors(dds)
+    rm(dds)
+    
+    if(return.norm==T){
+      return(dd)
+      
+    }else{
+      # Normalization factor estimate from spikein using median expression value across SP genes
+      m <- t(apply(df2.c[,2:13],2,median))
+      n <- matrix(nrow=12,ncol=12)
+      for (i in 1:12) {n[i,] <- round(m/m[i],2)}
+      medsizeFactor <- as.vector(t(rowMeans(t(t(n)/n[1,]))))
+      names(medsizeFactor) <- names(s)[1:12]
+      rm(m,n)
+      
+      pdf("A:/work/WinstonLab/Natalia_Reim/Analysis_Feb18/SpikeinAssessment_HTSeqCounts.pdf",width = 11,height = 15)
+      par(mfrow=c(4,2))
+      par(mar=c(3,3,2,2))
+      FP4.rle.boxplot(df1.c)         ## RLE distribution for spikein control
+      mtext("Raw Sp tags",3,line=1)
+      FP4.rle.boxplot(df1.e[,2:13])         ## RLE distribution for spikein control
+      mtext("Raw Sc tags",3,line=1)
+      
+      FP4.rle.boxplot(df2.c[,2:13])         ## RLE distribution for spikein control
+      mtext("Size-normalized Sp tags",3,line=1)
+      FP4.rle.boxplot(df2.e[,2:13])         ## RLE distribution for spikein control
+      mtext("Size-normalized Sc tags",3,line=1)
+      
+      FP4.rle.boxplot(t(t(df1.c)/(dd)))         ## RLE distribution for spikein control
+      mtext("DESeq2 sizeFactor normalized raw Sp counts",3,line = 1)
+      FP4.rle.boxplot(t(t(df1.e[,2:13])/(dd)))         ## RLE distribution for spikein control
+      mtext("DESeq2 sizeFactor normalized raw Sc counts",3,line = 1)
+      
+      FP4.rle.boxplot(t(medsizeFactor*t(df2.c[,2:13])))         ## RLE distribution for spikein control
+      mtext("Median sizeFactor and library size normalized Sc counts",3,line = 1)
+      FP4.rle.boxplot(t(medsizeFactor*t(df2.e[,2:13])))         ## RLE distribution for spikein control
+      mtext("Median sizeFactor and library size normalized Sp counts",3,line = 1)
+      
+      dev.off()
+      rm(df1.c,df1.e,df2.c,df2.e,htseq,colData,type,condition)
+      
+    }
+  }
+  dd <- check_spikeinValidity_sense(s,return.norm = T)
+  
+  load("A:/work/yeast_Annotations/ScSp_SGD.RevisedGenesFull.RData")
+  #genes <- genes[genes$species=="Scer",]
+  genes <- genes[complete.cases(genes),]
+  genes <- as(genes,"GRanges")
+  length(genes[genes$species=="Scer" & seqnames(genes)!="chrM"])
+  g <- disjoin(genes,ignore.strand=T)
+  d <- as.data.frame(findOverlaps(g,genes,select="all",ignore.strand=T))
+  d <- as.data.frame(table(d$queryHits))
+  d <- d[d$Freq==1,]
+  g <- g[as.numeric(d$Var1)]
+  d <- findOverlaps(g,genes,select="all",ignore.strand=T)
+  values(g) <- cbind(values(g),data.frame(values(genes[subjectHits(d)])))
+  strand(g) <- strand(genes[subjectHits(d)])
+  g$cov <- width(g)*100/width(genes[subjectHits(d)])
+  #g <- g[g$cov>50]
+  g[g$species=="Scer" & seqnames(g)!="chrM"]
+  g[g$species=="Scer"]
+  
+  setwd("A:/work/WinstonLab/Natalia_Reim/October2016/gr")
+  files <- Sys.glob("*.gr")
+  as <- c()
+  for (f in files) {
+    cat(f,"\n")
+    load(f)
+    as <- cbind(as,countOverlaps(g,gr,minoverlap = 1,ignore.strand=F))# strand info in compl format in rnaseq bam
+    rm(gr)
+  }
+  as <- as.data.frame(as)
+  colnames(as) <- gsub(".gr","",files)
+  g <- as.data.frame(g)
+  as$tracking_id <- g$tracking_id
+  as$chr <- g$seqnames
+  as <- data.table(as)
+  as <- as[,lapply(.SD,sum),by=list(tracking_id,chr)]
+  as <- as.data.frame(as)
+  rownames(as) <- as.character(as$tracking_id)
+  as$tracking_id <- NULL 
+  as <- as[,c(2:13,1)]
+  
+  ad <- check_spikeinValidity_sense(as,return.norm = T)
+  
+  load("A:/work/yeast_Annotations/ScSp_SGD.RevisedGenesFull.RData")
+  names(as)[1:12] <- names(s)[1:12] <- names(ad) <- names(dd) <- c("SPN1-AID_DMSO-1", "SPN1-AID_DMSO-2", "SPN1-AID_IAA-1", "SPN1-AID_IAA-2", "noAID_DMSO-1", 
+                                                                   "noAID_DMSO-2", "noAID_IAA-1", "noAID_IAA-2", "WT_DMSO-1", "WT_DMSO-2", 
+                                                                   "WT_IAA-1", "WT_IAA-2")
+  save(s,as,ad,dd,genes,file="A:/work/WinstonLab/Natalia_Reim/Analysis_Feb18/Sense_Antisese_ReadCounts_revised_01.RData")
+}
 ## AS genes : non-overlapping, not within 100bp of each other on oppo strand
 if(T){
   #rm(list=ls())
