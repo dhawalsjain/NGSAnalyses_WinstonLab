@@ -8,6 +8,19 @@ cols = c("non-depleted"="#4477AA", "Spn1-depleted"="#BB5566",
          "SPN1-AID_DMSO"="#4477AA","SPN1-AID_IAA"="#BB5566")
 spiked.chr <- c("chrXVII","chrXVIII","chrXIX")
 chr.flt <- c("chrI","chrII","chrIII","chrIV","chrIX","chrV","chrVI","chrVII","chrVIII","chrX","chrXI","chrXII","chrXIII","chrXIV","chrXV","chrXVI")
+FP4.rle.boxplot <- function(m,file){
+  m <- t(apply(m, 1,function(x){round(x/median(x),2)}))
+  m <- ifelse(m=="NaN",NA,m)
+  m <- ifelse(m=="Inf",NA,m)
+
+  num.sample <- dim(m)[2]
+
+  par(mar=c(3,15,2,2)) #bottom,left,top,right
+  boxplot.matrix(log2(m),use.cols=TRUE, ylim=c(-5,5),outline=FALSE,horizontal=TRUE,yaxt="n",xlab="RLE")
+  axis(2, at=seq(1, num.sample, by=1),labels = FALSE)
+  text(y=seq(1, num.sample, by=1),par("usr")[1], labels = colnames(m), srt = 00, pos = 2, xpd = TRUE)
+  abline(v=0,lty=2,col="gray")
+}
 
 ## generate counts
 #### Sense: HTSeq
